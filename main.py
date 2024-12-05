@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 import customtkinter as ctk
-from funcs import currency_format, currency_raw, export, importer
+from functions import currency_format, currency_raw, export, importer
 from PIL import Image, ImageTk
 
 ctk.set_appearance_mode("Dark")
@@ -68,3 +68,5 @@ def add_expense():
     value_entry.delete(0, tk.END)
 
     update_balance()
+
+
