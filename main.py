@@ -49,26 +49,18 @@ def add_expense():
     except:
         if _value_error is not None:
             _value_error.destroy()
-        _value_error = ctk.CTkLabel(frame, text='Enter a valid value!', text_color='#d45b50')
+        _value_error = ctk.CTkLabel(frame, text='Enter a valid value!', text_color='#d45b50', font=("Arial", 12))
         _value_error.grid(row=1, column=3, padx=5, pady=5)
         return
 
     expenses.append((name, value))
 
-    _spacing_v = 70 - len(f'{value}')
-    if len(f'{name}') <= 3:
-        _spacing_n = 66 - len(f'{name}')
-    elif name == 'Not Defined':
-        _spacing_n = 58
-    else:
-        _spacing_n = 69 - len(f'{name}')
-    value_rs = 'R$ ' + value
-    table.insert("", tk.END, values=(f"{name:^{_spacing_n}}", f"{value_rs:^{_spacing_v}}"))
+    value_rs = '$ ' + value
+    table.insert("", tk.END, values=(name, value_rs))
     name_entry.delete(0, tk.END)
     value_entry.delete(0, tk.END)
 
     update_balance()
-
 
 
 def remove_expense():
@@ -92,7 +84,7 @@ def update_balance():
             val = expense
         total_expenses += float(val)
     current_balance = initial_balance - total_expenses
-    balance_display_label.configure(text=f"Current Balance: R$ {currency_format(current_balance)}")
+    balance_display_label.configure(text=f"Current Balance: $ {currency_format(current_balance)}")
 
 
 def update_variables(balance, _expenses):
@@ -103,15 +95,8 @@ def update_variables(balance, _expenses):
     table.delete(*table.get_children())
 
     for name, value in expenses:
-        _spacing_v = 70 - len(f'{value}')
-        if len(f'{name}') <= 3:
-            _spacing_n = 66 - len(f'{name}')
-        elif name == 'Not Defined':
-            _spacing_n = 58
-        else:
-            _spacing_n = 69 - len(f'{name}')
-        value_rs = 'R$ ' + f'{value}'
-        table.insert("", tk.END, values=(f"{name:^{_spacing_n}}", f"{value_rs:^{_spacing_v}}"))
+        value_rs = '$ ' + f'{value}'
+        table.insert("", tk.END, values=(name, value_rs))
     update_balance()
 
 
@@ -125,19 +110,19 @@ def start_program():
     except:
         if _initial_balance_error is not None:
             _initial_balance_error.destroy()
-        _initial_balance_error = ctk.CTkLabel(balance_frame, text='Enter a valid value', text_color='#d45b50')
+        _initial_balance_error = ctk.CTkLabel(balance_frame, text='Enter a valid value', text_color='#d45b50', font=("Arial", 12))
         _initial_balance_error.pack()
         return
     current_balance = initial_balance
     balance_display_label.configure(text=f"Current Balance: R$ {currency_format(current_balance)}")
     balance_frame.pack_forget()
-    table.pack(pady=10)
+    table_frame.pack(pady=10, padx=20, fill='x')
     button_frame.pack()
 
 
 # App setup
 app = ctk.CTk()
-app.geometry("600x520")
+app.geometry("650x520")
 app.title("Expense Tracker")
 
 icon = ImageTk.PhotoImage(Image.open('assets/app_icon.ico'))
@@ -147,27 +132,29 @@ app.wm_iconphoto(True, icon)
 balance_frame = ctk.CTkFrame(app)
 balance_frame.pack(pady=200, fill='both')
 
-balance_instruction_label = ctk.CTkLabel(balance_frame, text="Enter the Initial Balance:")
+balance_instruction_label = ctk.CTkLabel(balance_frame, text="Enter the Initial Balance:", font=("Arial", 14))
 balance_instruction_label.pack()
 
-balance_entry = ctk.CTkEntry(balance_frame)
+balance_entry = ctk.CTkEntry(balance_frame, font=("Arial", 14))
 balance_entry.pack(pady=5)
 
-start_button = ctk.CTkButton(balance_frame, text="Start", command=start_program)
+start_button = ctk.CTkButton(balance_frame, text="Start", command=start_program, font=("Arial", 14))
 start_button.pack(pady=5)
 
 # Label to display the current balance
-balance_display_label = ctk.CTkLabel(app, text="Current Balance: R$ 0.00")
+balance_display_label = ctk.CTkLabel(app, text="Current Balance: $ 0.00", font=("Arial", 16))
 balance_display_label.pack(pady=10)
 
+# Style adjustments for Treeview (Expense List)
 style = ttk.Style()
 style.theme_use("default")
 
 style.configure("Treeview",
                 background="#2a2d2e",
                 foreground="white",
-                rowheight=25,
+                rowheight=30,
                 fieldbackground="#343638",
+                font=("Arial", 14),
                 bordercolor="#343638",
                 borderwidth=0)
 style.map('Treeview', background=[('selected', '#2fa572')])
@@ -175,42 +162,54 @@ style.map('Treeview', background=[('selected', '#2fa572')])
 style.configure("Treeview.Heading",
                 background="#3c4042",
                 foreground="white",
-                relief="flat")
+                relief="flat",
+                font=("Arial", 14))
 style.map("Treeview.Heading",
           background=[('active', '#2fa572')])
 
-table = ttk.Treeview(app, columns=("Name", "Value"))
+# Treeview (Expense List)
+table_frame = ctk.CTkFrame(app, width=550)
+table_frame.pack_forget()
+
+table = ttk.Treeview(table_frame, columns=("Name", "Value"), show="headings", height=10)
 table.heading("Name", text="Expense Name")
 table.heading("Value", text="Expense Value")
+
+# Adjust column alignment and widths
+table.column("Name", anchor="center", width=300)
+table.column("Value", anchor="center", width=200)
 table.column("#0", width=0, stretch=tk.NO)
 
+table.pack(fill='both', expand=True)
+
+# Input Frame for Expenses
 frame = ctk.CTkFrame(app)
 frame.pack(pady=10)
 
-name_label = ctk.CTkLabel(frame, text="Expense Name:")
+name_label = ctk.CTkLabel(frame, text="Expense Name:", font=("Arial", 14))
 name_label.grid(row=0, column=0, padx=5, pady=5)
-name_entry = ctk.CTkEntry(frame, placeholder_text='Name')
+name_entry = ctk.CTkEntry(frame, placeholder_text='Name', font=("Arial", 14))
 name_entry.grid(row=0, column=1, padx=5, pady=5)
 
-value_label = ctk.CTkLabel(frame, text="Expense Value:")
+value_label = ctk.CTkLabel(frame, text="Expense Value:", font=("Arial", 14))
 value_label.grid(row=1, column=0, padx=5, pady=5)
-value_entry = ctk.CTkEntry(frame, placeholder_text='Numeric Value')
+value_entry = ctk.CTkEntry(frame, placeholder_text='Numeric Value', font=("Arial", 14))
 value_entry.grid(row=1, column=1, padx=5, pady=5)
 
+# Button Frame
 button_frame = ctk.CTkFrame(app)
 button_frame.pack(pady=10)
 
-add_button = ctk.CTkButton(button_frame, text="Add Expense", command=add_expense)
+add_button = ctk.CTkButton(button_frame, text="Add Expense", command=add_expense, font=("Arial", 14))
 add_button.pack(side=tk.LEFT, padx=5)
 
-remove_button = ctk.CTkButton(button_frame, text="Remove Expense", command=remove_expense)
+remove_button = ctk.CTkButton(button_frame, text="Remove Expense", command=remove_expense, font=("Arial", 14))
 remove_button.pack(side=tk.RIGHT, padx=5)
 
-export_button = ctk.CTkButton(button_frame, text="Export", command=lambda: export(initial_balance, current_balance, expenses))
+export_button = ctk.CTkButton(button_frame, text="Export", command=lambda: export(initial_balance, current_balance, expenses), font=("Arial", 14))
 export_button.pack(padx=5)
 
-# Modify the import button to call importer without arguments
-import_button = ctk.CTkButton(button_frame, text="Import", command=lambda: update_variables(*importer()))
+import_button = ctk.CTkButton(button_frame, text="Import", command=lambda: update_variables(*importer()), font=("Arial", 14))
 import_button.pack(padx=5)
 
 app.mainloop()

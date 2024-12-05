@@ -43,7 +43,7 @@ def currency_raw(value):
     """
     try:
         # Remove currency symbols and thousand separators
-        value = value.replace('R$', '').replace('.', '').replace(',', '.')
+        value = value.replace('$', '').replace('.', '').replace(',', '.')
         return float(value)
     except ValueError:
         return None  
