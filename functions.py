@@ -71,5 +71,4 @@ def importer():
     - expenses (list): List of expenses.
     """
     initial_balance, expenses = import_values()
-    print(expenses)
     return initial_balance, expenses

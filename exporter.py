@@ -88,13 +88,27 @@ def export_screen():
     excel_button = ctk.CTkButton(export_frame, text="Excel", command=lambda: export_excel(initial_balance, current_balance, expenses))
     excel_button.pack(pady=5, padx=5, side='left')
 
-    none_button = ctk.CTkButton(export_frame, text="None", command=lambda: export_none(initial_balance, current_balance, expenses))
-    none_button.pack(pady=5, padx=5, side='right')
-
     pdf_button = ctk.CTkButton(export_frame, text="PDF", command=lambda: export_pdf(initial_balance, current_balance, expenses))
     pdf_button.pack(pady=5, padx=5, side='right')
 
     exp_app.mainloop()
+
+def show_success_popup(message):
+    """
+    Displays a success popup with the given message.
+
+    Parameters:
+    - message (str): Message to display in the popup.
+    """
+    popup = ctk.CTkToplevel()
+    popup.geometry("300x150")
+    popup.title("Success")
+    popup.grab_set()  # Prevent interactions with other windows
+    label = ctk.CTkLabel(popup, text=message, font=("Arial", 16))
+    label.pack(pady=20)
+
+    popup.after(1000, popup.destroy)  
+    
 
 # PDF Export
 def export_pdf(initial_balance, current_balance, expenses):
@@ -179,7 +193,8 @@ def export_pdf(initial_balance, current_balance, expenses):
     elements.append(table)
 
     pdf.build(elements)
-
+    exp_app.destroy()
+    show_success_popup("Exported successfully!")
 
 # Excel Export
 def export_excel(initial_balance, current_balance, expenses):
@@ -218,6 +233,8 @@ def export_excel(initial_balance, current_balance, expenses):
 
     df = pd.DataFrame(data)
     df.to_excel(excel_path, index=False, engine='openpyxl')
+    exp_app.destroy()
+    show_success_popup("Exported successfully!")
 
 def export_none(initial_balance, current_balance, expenses):
     """
@@ -247,9 +264,7 @@ def import_values():
         # Read the Excel file using pandas
         imported_df = pd.read_excel(file_path, engine='openpyxl')
 
-        # Debug: Print DataFrame content to check its structure
-        print("Dataframe loaded:")
-        print(imported_df)
+    
 
         # Check if 'Balance' and expected columns are present
         if 'Balance' not in imported_df.columns or 'Expense' not in imported_df.columns or 'Expense Amount' not in imported_df.columns:
@@ -276,7 +291,6 @@ def import_values():
                     expenses.append((expense_name, expense_amount))
                 else:
                     print(f"Error: Invalid expense amount '{expense_amount_str}' for expense '{expense_name}'")
-
         return initial_balance, expenses
 
     except Exception as e:

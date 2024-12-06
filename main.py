@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, simpledialog
 import customtkinter as ctk
 from functions import currency_format, currency_raw, export, importer
 from PIL import Image, ImageTk
@@ -12,6 +12,7 @@ initial_balance = 0
 current_balance = initial_balance
 _initial_balance_error = None
 _value_error = None
+_update_window = None
 
 
 def _value_test(value):
@@ -72,6 +73,80 @@ def remove_expense():
             table.delete(item)
             del expenses[index]
             update_balance()
+
+
+def update_expense():
+    global _update_window
+    selected_item = table.selection()
+    if selected_item:
+        # Get the selected item's index in the expenses list
+        index = table.index(selected_item[0])
+        current_name, current_value = expenses[index]
+
+        # Close any existing update window
+        if _update_window and _update_window.winfo_exists():
+            _update_window.destroy()
+
+        # Create a new update window
+        _update_window = ctk.CTkToplevel(app)
+        _update_window.title("Update Expense")
+        _update_window.geometry("400x250")
+        _update_window.attributes('-topmost', True)
+
+        # Name update section
+        name_update_label = ctk.CTkLabel(_update_window, text="Expense Name:", font=("Arial", 14))
+        name_update_label.pack(pady=(20, 5))
+        name_update_entry = ctk.CTkEntry(_update_window, font=("Arial", 14), 
+                                         placeholder_text="Enter new name")
+        name_update_entry.insert(0, current_name)
+        name_update_entry.pack(pady=5)
+
+        # Value update section
+        value_update_label = ctk.CTkLabel(_update_window, text="Expense Value:", font=("Arial", 14))
+        value_update_label.pack(pady=(10, 5))
+        value_update_entry = ctk.CTkEntry(_update_window, font=("Arial", 14), 
+                                          placeholder_text="Enter new value")
+        value_update_entry.insert(0, current_value.replace('$', ''))
+        value_update_entry.pack(pady=5)
+
+        def save_update():
+            # Validate and save the updated expense
+            new_name = name_update_entry.get()
+            new_value = value_update_entry.get()
+
+            # Verify and clean the value
+            new_value = verify_value(new_value)
+
+            # Validate the new value
+            try:
+                _test = _value_test(new_value)
+                if _test is not None:
+                    int(_test)
+            except:
+                # Show error if value is invalid
+                error_label = ctk.CTkLabel(_update_window, text='Enter a valid value!', 
+                                           text_color='#d45b50', font=("Arial", 12))
+                error_label.pack(pady=5)
+                return
+
+            # Update the expenses list
+            expenses[index] = (new_name, new_value)
+
+            # Update the table
+            value_rs = '$' + new_value
+            table.item(selected_item[0], values=(new_name, value_rs))
+
+            # Update balance
+            update_balance()
+
+            # Close the update window
+            _update_window.destroy()
+
+        # Save button
+        save_button = ctk.CTkButton(_update_window, text="Save", 
+                                    command=save_update, 
+                                    font=("Arial", 14))
+        save_button.pack(pady=20)
 
 
 def update_balance():
@@ -182,6 +257,9 @@ table.column("#0", width=0, stretch=tk.NO)
 
 table.pack(fill='both', expand=True)
 
+# Bind double-click event to update_expense function
+table.bind('<Double-1>', lambda event: update_expense())
+
 # Input Frame for Expenses
 frame = ctk.CTkFrame(app)
 frame.pack(pady=10)
@@ -205,6 +283,10 @@ add_button.pack(side=tk.LEFT, padx=5)
 
 remove_button = ctk.CTkButton(button_frame, text="Remove Expense", command=remove_expense, font=("Arial", 14))
 remove_button.pack(side=tk.RIGHT, padx=5)
+
+# Add Update button
+update_button = ctk.CTkButton(button_frame, text="Update Expense", command=update_expense, font=("Arial", 14))
+update_button.pack(padx=5)
 
 export_button = ctk.CTkButton(button_frame, text="Export", command=lambda: export(initial_balance, current_balance, expenses), font=("Arial", 14))
 export_button.pack(padx=5)
