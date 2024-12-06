@@ -55,7 +55,7 @@ def add_expense():
 
     expenses.append((name, value))
 
-    value_rs = '$ ' + value
+    value_rs = '$' + value
     table.insert("", tk.END, values=(name, value_rs))
     name_entry.delete(0, tk.END)
     value_entry.delete(0, tk.END)
@@ -84,7 +84,7 @@ def update_balance():
             val = expense
         total_expenses += float(val)
     current_balance = initial_balance - total_expenses
-    balance_display_label.configure(text=f"Current Balance: $ {currency_format(current_balance)}")
+    balance_display_label.configure(text=f"Current Balance: ${currency_format(current_balance)}")
 
 
 def update_variables(balance, _expenses):
@@ -95,7 +95,7 @@ def update_variables(balance, _expenses):
     table.delete(*table.get_children())
 
     for name, value in expenses:
-        value_rs = '$ ' + f'{value}'
+        value_rs = '$' + f'{value}'
         table.insert("", tk.END, values=(name, value_rs))
     update_balance()
 
@@ -114,7 +114,7 @@ def start_program():
         _initial_balance_error.pack()
         return
     current_balance = initial_balance
-    balance_display_label.configure(text=f"Current Balance: R$ {currency_format(current_balance)}")
+    balance_display_label.configure(text=f"Current Balance: $ {currency_format(current_balance)}")
     balance_frame.pack_forget()
     table_frame.pack(pady=10, padx=20, fill='x')
     button_frame.pack()
@@ -142,7 +142,7 @@ start_button = ctk.CTkButton(balance_frame, text="Start", command=start_program,
 start_button.pack(pady=5)
 
 # Label to display the current balance
-balance_display_label = ctk.CTkLabel(app, text="Current Balance: $ 0.00", font=("Arial", 16))
+balance_display_label = ctk.CTkLabel(app, text="Current Balance: $0.00", font=("Arial", 16))
 balance_display_label.pack(pady=10)
 
 # Style adjustments for Treeview (Expense List)
