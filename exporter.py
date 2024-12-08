@@ -5,294 +5,132 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet
 import pandas as pd
 import tkinter as tk
-from tkinter import ttk, filedialog
+from tkinter import filedialog
 import customtkinter as ctk
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("green")
 
-initial_balance, current_balance, expenses = 0, 0, []
 
-def currency_format(value):
-    """
-    Formats the value to the Brazilian currency standard.
+class ExpenseManager:
+    def __init__(self):
+        self.initial_balance = 0
+        self.current_balance = 0
+        self.expenses = []
+        self.export_app = None
+        self.archivename_entry = None
 
-    Parameters:
-    - value (float or str): Value to be formatted.
-
-    Returns:
-    - str: Formatted value.
-    """
-    try:
-        # Ensure the value is a float or convertible to float
-        formatted_value = '{:_.2f}'.format(float(value)).replace('.', ',').replace('_', '.')
-        return formatted_value
-    except (ValueError, TypeError) as e:
-        print(f"Error formatting value: {value}. Error: {e}")
-        return "Invalid Value"
-
-def currency_raw(value):
-    """
-    Converts the value to the Python default float format.
-
-    Parameters:
-    - value (str): Value to be converted.
-
-    Returns:
-    - float: Converted value.
-    """
-    try:
-        # Remove currency symbols and thousand separators
-        value = value.replace('$', '').replace('.', '').replace(',', '.')
-        return float(value)
-    except ValueError:
-        return None  
-
-def export_values(initial_bal, current_bal, exp):
-    """
-    Saves values for export (transfer between files).
-
-    Parameters:
-    - initial_bal (float): Initial balance.
-    - current_bal (float): Current balance.
-    - exp (list): List of expenses.
-    """
-    global initial_balance, current_balance, expenses
-    initial_balance, current_balance, expenses = initial_bal, current_bal, exp
-
-def export_screen():
-    """
-    Creates a file export screen.
-
-    Returns:
-    - Screen (CTk): Export screen.
-    """
-    global exp_app
-    exp_app = ctk.CTk()
-    exp_app.geometry("480x260")
-    exp_app.title("Export")
-
-    export_frame = ctk.CTkFrame(exp_app)
-    export_frame.pack(pady=55, anchor='center')
-
-    archivename_label = ctk.CTkLabel(export_frame, text="File name (optional)")
-    archivename_label.pack(pady=5)
-
-    global archivename_entry
-    archivename_entry = ctk.CTkEntry(export_frame)
-    archivename_entry.pack(pady=5)
-
-    text_label = ctk.CTkLabel(export_frame, text="Choose an export option")
-    text_label.pack(pady=5)
-
-    excel_button = ctk.CTkButton(export_frame, text="Excel", command=lambda: export_excel(initial_balance, current_balance, expenses))
-    excel_button.pack(pady=5, padx=5, side='left')
-
-    pdf_button = ctk.CTkButton(export_frame, text="PDF", command=lambda: export_pdf(initial_balance, current_balance, expenses))
-    pdf_button.pack(pady=5, padx=5, side='right')
-
-    exp_app.mainloop()
-
-def show_success_popup(message):
-    """
-    Displays a success popup with the given message.
-
-    Parameters:
-    - message (str): Message to display in the popup.
-    """
-    popup = ctk.CTkToplevel()
-    popup.geometry("300x150")
-    popup.title("Success")
-    popup.grab_set()  # Prevent interactions with other windows
-    label = ctk.CTkLabel(popup, text=message, font=("Arial", 16))
-    label.pack(pady=20)
-
-    popup.after(1000, popup.destroy)  
-    
-
-# PDF Export
-def export_pdf(initial_balance, current_balance, expenses):
-    """
-    Creates a PDF file with balance and expense data.
-
-    Parameters:
-    - initial_balance (float): Initial balance.
-    - current_balance (float): Current balance.
-    - expenses (list): List of expenses.
-    """
-    print(f"Debugging: initial_balance = {initial_balance}, current_balance = {current_balance}, expenses = {expenses}")
-
-    # Ensure 'file_name' is defined
-    file_name = archivename_entry.get()  # Get the file name from the entry widget
-    if file_name == '':
-        file_name = 'Expense Control'  # Default name if no entry provided
-
-    exp_app.withdraw()
-    folder_path = filedialog.askdirectory(title='Choose a folder')
-    exp_app.deiconify()
-
-    try:
-        pdf_path = os.path.join(folder_path, f'{file_name}.pdf')
-    except TypeError:
-        return None
-
-    pdf = SimpleDocTemplate(pdf_path, pagesize=letter, leftMargin=20, rightMargin=20, topMargin=20, bottomMargin=20)
-    elements = []
-    styles = getSampleStyleSheet()
-
-    # Validate and format the balances
-    try:
-        initial_formatted = currency_format(initial_balance)
-        current_formatted = currency_format(current_balance)
-        diff_formatted = currency_format(initial_balance - current_balance)
-    except Exception as e:
-        print(f"Error formatting balances: {e}")
-        return None
-
-    balance_data = [[
-        Paragraph(f'Initial Balance: R$ {initial_formatted}', styles['Normal']),
-        Paragraph(f'Total Expenses: R$ -{diff_formatted}', styles['Normal']),
-        Paragraph(f'Final Balance: R$ {current_formatted}', styles['Normal']),
-    ]]
-
-    balance_style = TableStyle([ 
-        ('BACKGROUND', (0, 0), (-1, -1), colors.lightgrey),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 20),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 20),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-    ])
-
-    balance_table = Table(balance_data, colWidths=[pdf.width / 3] * 3)
-    balance_table.setStyle(balance_style)
-    elements.append(balance_table)
-
-    elements.append(Spacer(1, 12))
-
-    # Table for expenses
-    data = [['Expense', 'Amount']]
-    
-    for name, value in expenses:
+    @staticmethod
+    def currency_format(value):
         try:
-            formatted_value = currency_format(value)
+            formatted_value = '{:_.2f}'.format(float(value)).replace('.', ',').replace('_', '.')
+            return formatted_value
         except (ValueError, TypeError):
-            formatted_value = "Invalid Value"
-        data.append([name, f'R$ {formatted_value}'])
+            return "Invalid Value"
 
-    table_style = TableStyle([ 
-        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-    ])
+    @staticmethod
+    def currency_raw(value):
+        try:
+            value = value.replace('$', '').replace('.', '').replace(',', '.')
+            return float(value)
+        except ValueError:
+            return None
 
-    table = Table(data, colWidths=[pdf.width / len(data[0])] * len(data[0]))
-    table.setStyle(table_style)
-    elements.append(table)
+    def export_values(self,initial_bal, current_bal, exp):
+        self.initial_balance = initial_bal
+        self.current_balance = current_bal
+        self.expenses = exp
 
-    pdf.build(elements)
-    exp_app.destroy()
-    show_success_popup("Exported successfully!")
+    def export_screen(self):
+        self.export_app = ctk.CTk()
+        self.export_app.geometry("500x300")  # Increased size for better visibility
+        self.export_app.title("Export")
 
-# Excel Export
-def export_excel(initial_balance, current_balance, expenses):
-    """
-    Creates an Excel file with balance and expense data.
+        export_frame = ctk.CTkFrame(self.export_app)
+        export_frame.pack(pady=20, fill="both", expand=True)
 
-    Parameters:
-    - initial_balance (float): Initial balance.
-    - current_balance (float): Current balance.
-    - expenses (list): List of expenses.
-    """
-    file_name = archivename_entry.get()
+        # File name entry label and input
+        ctk.CTkLabel(export_frame, text="File name (optional)", font=("Arial", 16)).pack(pady=5)
+        self.archivename_entry = ctk.CTkEntry(export_frame, font=("Arial", 14))
+        self.archivename_entry.pack(pady=5)
 
-    if file_name == '':
-        file_name = 'Expense Control'
+        # Export option label
+        ctk.CTkLabel(export_frame, text="Choose an export option", font=("Arial", 16)).pack(pady=5)
 
-    exp_app.withdraw()
-    folder_path = filedialog.askdirectory(title='Choose a folder')
-    exp_app.deiconify()
+        # Frame for the export buttons
+        button_frame = ctk.CTkFrame(export_frame)
+        button_frame.pack(pady=10)
 
-    try:
-        excel_path = os.path.join(folder_path, f'{file_name}.xlsx')
-    except TypeError:
-        return None
+        # Export buttons
+        excel_button = ctk.CTkButton(button_frame, text="Excel", font=("Arial", 14), command=self.export_excel1)
+        excel_button.pack(pady=5, padx=10, side="left")
 
-    data = []
-    balance = initial_balance
-    for name, value in expenses:
-        row = {
-            'Balance': f'R$ {currency_format(balance)}',
-            'Expense': name,
-            'Expense Amount': f'R$ {currency_format(value)}',
-        }
-        balance -= float(value) 
-        data.append(row)
+        pdf_button = ctk.CTkButton(button_frame, text="PDF", font=("Arial", 14), command=self.export_pdf1)
+        pdf_button.pack(pady=5, padx=10, side="left")
 
-    df = pd.DataFrame(data)
-    df.to_excel(excel_path, index=False, engine='openpyxl')
-    exp_app.destroy()
-    show_success_popup("Exported successfully!")
-
-def export_none(initial_balance, current_balance, expenses):
-    """
-    Placeholder for no action.
-    """
-    print("No export performed.")
-
-# Import Values
-def import_values():
-    """
-    Imports data from a previously exported Excel file.
-
-    Returns:
-    - initial_balance (float): Initial balance.
-    - expense_list (list): List of expenses.
-    """
-    try:
-        # Open file dialog to select the Excel file
-        file_path = filedialog.askopenfilename(
-            title='Choose a file',
-            filetypes=[('Excel Files', '*.xlsx')]
+        # Cancel button to close the export popup
+        cancel_button = ctk.CTkButton(
+            export_frame, 
+            text="Cancel", 
+            font=("Arial", 14), 
+            fg_color="#E57373", 
+            command=self.export_app.destroy
         )
+        cancel_button.pack(pady=20)
 
-        if not file_path:
+        self.export_app.mainloop()
+
+
+    @staticmethod
+   
+
+  
+
+    def import_values(self):
+        print("Here in import values ")
+        try:
+            file_path = filedialog.askopenfilename(
+                title='Choose a file',
+                filetypes=[('Excel Files', '*.xlsx')]
+            )
+
+            if not file_path:
+                print("No file selected.")
+                return None
+
+            # Read the Excel file using pandas
+            imported_df = pd.read_excel(file_path, engine='openpyxl')
+
+            # Check if 'Balance' and expected columns are present
+            required_columns = {'Balance', 'Expense', 'Expense Amount'}
+            if not required_columns.issubset(imported_df.columns):
+                print(f"Error: Missing required columns. Expected columns: {required_columns}")
+                return None
+
+            # Extract initial balance (assuming it is in the first row)
+            initial_balance_str = imported_df.loc[0, 'Balance']  # Assuming the balance is in the first row
+            initial_balance = self.currency_raw(initial_balance_str)
+
+            if initial_balance is None:
+                print("Error: Invalid balance value")
+                return None
+
+            # Extract expenses from the DataFrame
+            expenses = []
+            for _, row in imported_df.iterrows():
+                expense_name = row['Expense']
+                expense_amount_str = row['Expense Amount']
+
+                if pd.notna(expense_name) and pd.notna(expense_amount_str):
+                    expense_amount = self.currency_raw(expense_amount_str)
+                    if expense_amount is not None:
+                        expenses.append((expense_name, expense_amount))
+                    else:
+                        print(f"Error: Invalid expense amount '{expense_amount_str}' for expense '{expense_name}'")
+
+            print(f"File successfully imported. Initial balance: {initial_balance}, Expenses: {len(expenses)} items.")
+            return initial_balance, expenses
+
+        except Exception as e:
+            print(f"Error importing Excel file: {e}")
             return None
-
-        # Read the Excel file using pandas
-        imported_df = pd.read_excel(file_path, engine='openpyxl')
-
-    
-
-        # Check if 'Balance' and expected columns are present
-        if 'Balance' not in imported_df.columns or 'Expense' not in imported_df.columns or 'Expense Amount' not in imported_df.columns:
-            print("Error: Missing required columns in the file")
-            return None
-
-        # Extract initial balance (assuming it is in the second row)
-        initial_balance_str = imported_df.loc[0, 'Balance']  # Assuming the balance is in the first row
-        initial_balance = currency_raw(initial_balance_str)
-
-        if initial_balance is None:
-            print("Error: Invalid balance value")
-            return None
-
-        # Extract expenses from the DataFrame
-        expenses = []
-        for _, row in imported_df.iterrows():
-            expense_name = row['Expense']
-            expense_amount_str = row['Expense Amount']
-            
-            if pd.notna(expense_name) and pd.notna(expense_amount_str):
-                expense_amount = currency_raw(expense_amount_str)
-                if expense_amount is not None:
-                    expenses.append((expense_name, expense_amount))
-                else:
-                    print(f"Error: Invalid expense amount '{expense_amount_str}' for expense '{expense_name}'")
-        return initial_balance, expenses
-
-    except Exception as e:
-        print(f"Error importing Excel file: {e}")
-        return None
