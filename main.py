@@ -233,6 +233,92 @@ class ExpenseTracker:
             messagebox.showinfo("Success", "Initial balance updated successfully.")
         except ValueError:
             messagebox.showerror("Error", "Please enter a valid numeric value.")
+
+    def show_prediction_screen(self):
+        """Navigates to the prediction screen."""
+        self.clear_frames()
+        self.prediction_frame = ctk.CTkFrame(self.app)
+        ctk.CTkLabel(
+            self.prediction_frame,
+            text="Predicted Future Expense",
+            font=self.header_font,
+            text_color="white",
+        ).pack(pady=20)
+
+        self.graph_frame = ctk.CTkFrame(self.prediction_frame)
+        self.graph_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        ctk.CTkButton(
+            self.prediction_frame,
+            text="Go Back",
+            font=self.button_font,
+            fg_color="#6C7A89",
+            width=200,
+            command=self.show_main_view,
+        ).pack(pady=20)
+
+        self.prediction_frame.pack(fill="both", expand=True)
+
+        # Perform prediction and display the graph
+        self.predict_future_expense()
+
+    def predict_future_expense(self):
+        if not self.expenses:
+            ctk.CTkLabel(
+                self.prediction_frame,
+                text="No data available for prediction.",
+                font=self.label_font,
+                text_color="white",
+            ).pack(pady=10)
+            return
+
+        # Prepare data
+        data = pd.DataFrame(self.expenses, columns=["Name", "Value"])
+        data["Index"] = range(len(data))  # Add an index for time-series modeling
+
+        # Features and target
+        X = data["Index"].values.reshape(-1, 1)  # Time indices
+        y = data["Value"].values  # Expense values
+
+        # Train a linear regression model
+        model = LinearRegression()
+        model.fit(X, y)
+
+        # Predict the next value
+        next_index = np.array([[len(data)]])  # Next time index
+        predicted_value = model.predict(next_index)[0]
+
+        # Update the label with the prediction
+        formatted_prediction = f"${predicted_value:,.2f}"
+        ctk.CTkLabel(
+            self.prediction_frame,
+            text=f"Predicted Future Expense: {formatted_prediction}",
+            font=self.label_font,
+            text_color="white",
+        ).pack(pady=10)
+
+        # Plot the data
+        plt.figure(figsize=(8, 5))
+        plt.plot(data["Index"], y, label="Past Expenses", marker="o")
+        plt.plot([len(data)], [predicted_value], label="Predicted Expense", marker="x", color="red")
+        plt.title("Expense Prediction")
+        plt.xlabel("Time (Index)")
+        plt.ylabel("Expense Value")
+        plt.legend()
+
+        # Save the plot as an image
+        plot_image_path = "plot_image.png"
+        plt.savefig(plot_image_path)
+        plt.close()
+
+        # Display the image in the Tkinter GUI using Pillow
+        image = Image.open(plot_image_path)
+        photo = ImageTk.PhotoImage(image)
+
+        label = ctk.CTkLabel(self.graph_frame, image=photo, text="")
+        label.image = photo  # Keep a reference to the image to prevent garbage collection
+        label.pack(fill="both", expand=True)
+        # Embed the Matplotlib figure into Tkinter
         
     
     def show_start_frame(self):
@@ -290,7 +376,97 @@ class ExpenseTracker:
             self.expense_table.delete(item)
             del self.expenses[index]
         self.update_balance()
-  
+    def update_expense(self):
+        selected_item = self.expense_table.selection()
+
+        if not selected_item:
+            messagebox.showerror("Error", "Please select an expense to update.")
+            return
+
+        # Get the selected item's index and current values
+        index = self.expense_table.index(selected_item[0])
+        current_name, current_value = self.expenses[index]
+
+        # If current_value is None or invalid, set it to an empty string
+        if current_value is None:
+            current_value = "0.00"  # Or set a default value like "0.00" or an empty string ""
+
+        # Destroy the update window if it already exists
+        if hasattr(self, "_update_window") and self._update_window.winfo_exists():
+            self._update_window.destroy()
+
+        # Create a new update window
+        self._update_window = ctk.CTkToplevel(self.app)
+        self._update_window.title("Update Expense")
+        self._update_window.geometry("400x300")
+        self._update_window.attributes('-topmost', True)
+
+        # Configure the update window layout
+        self._update_window.columnconfigure(0, weight=1)
+        self._update_window.rowconfigure(0, weight=1)
+
+        # Frame to hold all input elements and button
+        frame = ctk.CTkFrame(self._update_window)
+        frame.pack(fill="both", expand=True, padx=20, pady=20)
+
+        # Labels and input fields
+        name_label = ctk.CTkLabel(
+            frame, text="Expense Name:", font=("Arial", 14)
+        )
+        name_label.grid(row=0, column=0, sticky="w", pady=(10, 5))
+
+        name_update_entry = ctk.CTkEntry(
+            frame, font=("Arial", 14), placeholder_text="Enter new name"
+        )
+        name_update_entry.insert(0, current_name)
+        name_update_entry.grid(row=1, column=0, sticky="ew", pady=5)
+
+        value_label = ctk.CTkLabel(
+            frame, text="Expense Value:", font=("Arial", 14)
+        )
+        value_label.grid(row=2, column=0, sticky="w", pady=(10, 5))
+
+        value_update_entry = ctk.CTkEntry(
+            frame, font=("Arial", 14), placeholder_text="Enter new value"
+        )
+        value_update_entry.insert(0, current_value)
+        value_update_entry.grid(row=3, column=0, sticky="ew", pady=5)
+
+        # Save update function
+        def save_update():
+            new_name = name_update_entry.get()
+            new_value = value_update_entry.get()
+            print("Here ")
+
+            try:
+                # Validate and format the new value
+                
+                if self.f.currency_raw(new_value) is None:
+                    raise ValueError("Invalid value")
+
+                formatted_value = f"${new_value}"
+                
+                # Update the internal expenses list and the table
+                self.expenses[index] = (new_name, new_value)
+                self.expense_table.item(selected_item[0], values=(new_name, formatted_value))
+                
+                # Update the balance and close the update window
+                self.update_balance()
+                self._update_window.destroy()
+
+            except ValueError:
+                # Show an error label for invalid inputs
+                error_label = ctk.CTkLabel(
+                    frame, text="Enter a valid numeric value!",
+                    text_color="#d45b50", font=("Arial", 12)
+                )
+                error_label.grid(row=4, column=0, sticky="ew", pady=(10, 5))
+
+        # Save button
+        save_button = ctk.CTkButton(
+            frame, text="Save", command=save_update, font=("Arial", 14)
+        )
+        save_button.grid(row=5, column=0, pady=20)
 
 
 
