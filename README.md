@@ -1,6 +1,5 @@
 # 💰 Expense Tracker
-
-![Expense Tracker](https://via.placeholder.com/1000x300.png?text=Expense+Tracker)
+<img width="1470" alt="Screenshot 2024-12-09 at 10 36 02 AM" src="https://github.com/user-attachments/assets/757ce63b-8ade-4a63-9381-c0d98ec46349">
 
 A powerful and user-friendly desktop application for effortlessly managing, tracking, and analyzing your expenses. Built with an interactive GUI, database integration, and predictive analytics, this tool is perfect for staying on top of your finances.
 
