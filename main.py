@@ -2,13 +2,13 @@ import customtkinter as ctk
 from tkinter import ttk, messagebox,simpledialog
 from functions import Functions 
 from exporter import ExpenseManager
-
 import tkinter.font as tkfont
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 import numpy as np
 import pandas as pd
 from PIL import Image ,ImageTk
+from database import get_db_connection, initialize_db
 
 
 class ExpenseTracker:
@@ -21,6 +21,14 @@ class ExpenseTracker:
 
         self.f = Functions()
         self.ex = ExpenseManager()
+        
+        initialize_db()
+        self.conn = get_db_connection()
+        if not self.conn:
+            messagebox.showerror("Database Error", "Unable to connect to the database.")
+            return  # Prevent further execution if the database is unavailable
+
+
         # Variables
         self.expenses = []
         self.initial_balance = 0
@@ -214,6 +222,16 @@ class ExpenseTracker:
             font=self.header_font,
             text_color="white",
         )
+    def load_data(self):
+        """Load expenses from the database."""
+        if not self.conn:
+            messagebox.showerror("Database Error", "Unable to connect to the database.")
+            return
+
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT name, value FROM Expense")
+        self.expenses = cursor.fetchall()
+    
 
     def update_initial_balance(self):
         """Prompts the user for a new initial balance and updates it."""
@@ -298,13 +316,28 @@ class ExpenseTracker:
         ).pack(pady=10)
 
         # Plot the data
-        plt.figure(figsize=(8, 5))
-        plt.plot(data["Index"], y, label="Past Expenses", marker="o")
-        plt.plot([len(data)], [predicted_value], label="Predicted Expense", marker="x", color="red")
+        plt.figure(figsize=(8, 6))  # Increase figure size for better visibility
+
+# Create a bar chart with thinner bars (set width) and adjusted transparency
+        bar_width = 0.6  # Set bar width for thinner bars
+        plt.bar(data["Name"], y, label="Expenses", color="blue", alpha=0.7, width=bar_width)
+
+        # Highlight predicted expense
+        plt.scatter(["Predicted"], [predicted_value], label="Predicted Expense", color="red", s=100, zorder=5)
+
+        # Add grid for better Y-axis visibility
+        plt.grid(axis='y', linestyle='--', alpha=0.7)
+
+        # Add labels and title
         plt.title("Expense Prediction")
-        plt.xlabel("Time (Index)")
-        plt.ylabel("Expense Value")
+        plt.xlabel("What You Spend On")  # X-axis: Expense Names
+        plt.ylabel("How Much")  # Y-axis: Expense Values
+        plt.xticks(rotation=45, ha="right", fontsize=10)  # Rotate and adjust font size of X-axis labels
+        plt.yticks(fontsize=10)  # Adjust font size of Y-axis labels
         plt.legend()
+        plt.tight_layout()
+
+
 
         # Save the plot as an image
         plot_image_path = "plot_image.png"
@@ -353,29 +386,45 @@ class ExpenseTracker:
         self.show_main_view()
 
     def add_expense(self):
-        name = self.name_entry.get() or "Not Defined"
+        """Add a new expense to the database and update the GUI."""
+        if not self.conn:
+            messagebox.showerror("Database Error", "No database connection.")
+            return
+
+        name = self.name_entry.get()
         value = self.value_entry.get()
         try:
-            # Parse the value as a float and format it properly
-            value = float(self.f.currency_raw(value))
-            formatted_value = f"${value:,.2f}"  # Correctly format the value as currency
+            value = float(value)
+            cursor = self.conn.cursor()
+            cursor.execute("INSERT INTO expenses (name, value) VALUES (%s, %s)", (name, value))
+            self.conn.commit()
+
+            # Update the local list and Treeview
             self.expenses.append((name, value))
+            self.expense_table.insert("", "end", values=(name, f"${value:,.2f}"))
             self.update_balance()
 
-            # Insert formatted value into the expense table
-            self.expense_table.insert("", "end", values=(name, formatted_value))
+            # Clear the input fields
             self.name_entry.delete(0, "end")
             self.value_entry.delete(0, "end")
         except ValueError:
             messagebox.showerror("Error", "Please enter a valid numeric value.")
+        except Exception as e:
+            messagebox.showerror("Database Error", f"Error adding expense: {e}")
 
     def remove_expense(self):
         selected_items = self.expense_table.selection()
         for item in selected_items:
             index = self.expense_table.index(item)
+            name, _ = self.expenses[index]
+            cursor = self.conn.cursor()
+            cursor.execute("DELETE FROM expenses WHERE name = %s", (name,))
+            self.conn.commit()
+
             self.expense_table.delete(item)
             del self.expenses[index]
         self.update_balance()
+
     def update_expense(self):
         selected_item = self.expense_table.selection()
 
@@ -446,6 +495,13 @@ class ExpenseTracker:
 
                 formatted_value = f"${new_value}"
                 
+                cursor = self.conn.cursor()
+                cursor.execute(
+                    "UPDATE expenses SET name = %s, value = %s WHERE name = %s AND value = %s",
+                    (new_name, new_value, current_name, current_value)
+                )
+                self.conn.commit()
+                    
                 # Update the internal expenses list and the table
                 self.expenses[index] = (new_name, new_value)
                 self.expense_table.item(selected_item[0], values=(new_name, formatted_value))
@@ -471,7 +527,7 @@ class ExpenseTracker:
 
 
     def update_balance(self):
-        total_expenses = sum(float(value) for _, value in self.expenses)
+        total_expenses = sum(int(value) for _, value in self.expenses)
         self.current_balance = self.initial_balance - total_expenses
         self.update_balance_display()
 
@@ -495,7 +551,7 @@ class ExpenseTracker:
         self.expenses = expenses
         self.expense_table.delete(*self.expense_table.get_children())
         for name, value in self.expenses:
-            self.expense_table.insert("", "end", values=(name, f"${self.f.currency_format(value)}"))
+            self.expense_table.insert("", "end", values=(name, f"{self.f.currency_format(value)}"))
         self.update_balance()
 
     def clear_frames(self):
