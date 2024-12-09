@@ -82,9 +82,94 @@ class ExpenseManager:
 
 
     @staticmethod
-   
+    def show_success_popup(message):
+        popup = ctk.CTkToplevel()
+        popup.geometry("300x150")
+        popup.title("Success")
+        popup.grab_set()
+        ctk.CTkLabel(popup, text=message, font=("Arial", 16)).pack(pady=20)
+        popup.after(1000, popup.destroy)
 
-  
+    def export_pdf1(self):
+        file_name = self.archivename_entry.get() or 'Expense Control'
+        self.export_app.withdraw()
+        folder_path = filedialog.askdirectory(title='Choose a folder')
+        self.export_app.deiconify()
+
+        if not folder_path:
+            return
+
+        pdf_path = os.path.join(folder_path, f'{file_name}.pdf')
+        pdf = SimpleDocTemplate(pdf_path, pagesize=letter, leftMargin=20, rightMargin=20, topMargin=20, bottomMargin=20)
+        elements = []
+        styles = getSampleStyleSheet()
+
+        try:
+            initial_formatted = self.currency_format(self.initial_balance)
+            current_formatted = self.currency_format(self.current_balance)
+            diff_formatted = self.currency_format(self.initial_balance - self.current_balance)
+        except Exception as e:
+            print(f"Error formatting balances: {e}")
+            return
+
+        balance_data = [[
+            Paragraph(f'Initial Balance: R$ {initial_formatted}', styles['Normal']),
+            Paragraph(f'Total Expenses: R$ -{diff_formatted}', styles['Normal']),
+            Paragraph(f'Final Balance: R$ {current_formatted}', styles['Normal']),
+        ]]
+
+        balance_table = Table(balance_data, colWidths=[pdf.width / 3] * 3)
+        balance_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.lightgrey),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 20),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 20),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+        elements.append(balance_table)
+        elements.append(Spacer(1, 12))
+
+        data = [['Expense', 'Amount']] + [
+            [name, f'R$ {self.currency_format(value)}'] for name, value in self.expenses
+        ]
+        table = Table(data, colWidths=[pdf.width / len(data[0])] * len(data[0]))
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+        elements.append(table)
+        pdf.build(elements)
+
+        self.export_app.destroy()
+        self.show_success_popup("Exported successfully!")
+
+    def export_excel1(self):
+        file_name = self.archivename_entry.get() or 'Expense Control'
+        self.export_app.withdraw()
+        folder_path = filedialog.askdirectory(title='Choose a folder')
+        self.export_app.deiconify()
+
+        if not folder_path:
+            return
+
+        excel_path = os.path.join(folder_path, f'{file_name}.xlsx')
+        data = []
+        balance = self.initial_balance
+        for name, value in self.expenses:
+            data.append({
+                'Balance': f'$ {self.currency_format(balance)}',
+                'Expense': name,
+                'Expense Amount': f'$ {self.currency_format(value)}',
+            })
+            balance -= float(value)
+
+        pd.DataFrame(data).to_excel(excel_path, index=False, engine='openpyxl')
+        self.export_app.destroy()
+        self.show_success_popup("Exported successfully!")
 
     def import_values(self):
         print("Here in import values ")
