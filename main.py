@@ -541,6 +541,20 @@ class ExpenseTracker:
 
     def show_main_view(self):
         self.clear_frames()
+
+    # Clear the input fields
+        self.name_entry.delete(0, "end")
+        self.value_entry.delete(0, "end")
+
+        # Empty the expenses list
+        self.expenses.clear()
+        self.initial_balance = 0
+        self.current_balance = 0
+
+        # Clear the Treeview
+        self.expense_table.delete(*self.expense_table.get_children())
+
+        # Pack the frames and labels
         self.table_frame.pack(fill="both", padx=20, pady=10, expand=True)
         self.input_frame.pack(fill="x", padx=20, pady=10)
         self.button_frame.pack(fill="x", padx=20, pady=10)
