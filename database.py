@@ -7,7 +7,7 @@ def get_db_connection():
             user='',
             password='',
             host='localhost',
-            database='expense_tracker'
+            database=''
         )
         return conn
     except mysql.connector.Error as err:
