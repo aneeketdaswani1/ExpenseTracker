@@ -39,3 +39,4 @@ Ensure you have the following installed:
    ```bash
    git clone https://github.com/yourusername/expense-tracker.git
    cd expense-tracker
+   pip install -r requirements.txt
